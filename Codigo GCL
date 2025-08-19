@@ -1,0 +1,261 @@
+(*
+=========================================================
+Recomendador con múltiples perfiles — Pseudocódigo GCL
+=========================================================
+*)
+
+const TOP_N := 5;
+
+(*
+Estructuras base
+- CATALOG: conjunto de items con campos title: String,
+           genres: Set<String>, tags: Set<String>, popularity: Int
+- USERS:   mapa usuario -> Lista<String> (historial, títulos vistos)
+*)
+
+var CATALOG, USERS;
+
+(*
+Inicialización de CATALOG (idéntica al código Python; abreviada aquí por espacio.
+En tu documento final, copia todas las entradas tal como están en el script).
+Ejemplo de una entrada:
+
+CATALOG := {
+  item("Toy Story", {"comedy","family","adventure"}, {"toys","friendship","pixar"}, 950),
+  item("Matrix", {"action","scifi"}, {"virtual","rebellion","classic"}, 990),
+  ...
+  item("WALL-E", {"animation","scifi","family"}, {"robot","earth","pixar"}, 950)
+};
+
+USERS := {
+  ("ana" -> ["Toy Story","Coco","Inside Out","Soul"]),
+  ("luis" -> ["Matrix","Inception","Spider-Verse"]),
+  ...
+  ("natalia" -> ["Coco","Inside Out","WALL-E"])
+};
+*)
+
+(*
+=================================
+Utilidades de búsqueda y helpers
+=================================
+*)
+
+fun FindItemByTitle(t) =
+  var found;
+  found := nil;
+  do ∃c ∈ CATALOG : c.title = t ->
+      found := c;
+      exit
+  od;
+  return found;
+
+fun SetFromList(L) =
+  var S; S := {};
+  do ∃x ∈ L : x ∉ S ->
+      S := S ∪ {x};
+      L := L \ {x}
+  od;
+  return S;
+
+fun Tail(L, k) =
+  (* devuelve la “cola” de los últimos k elementos de la lista L *)
+  var R; R := [];
+  var n, i; n := length(L);
+  i := max(1, n - k + 1);
+  do i ≤ n ->
+      R := R ⧺ [L[i]];
+      i := i + 1
+  od;
+  return R;
+
+(*
+========================
+Mapa estado → géneros
+========================
+*)
+
+proc MoodToGenres(MOOD) -> MOOD_GENRES =
+  if
+    MOOD = "😊" -> MOOD_GENRES := {"comedy","adventure"}
+  []
+    MOOD = "😔" -> MOOD_GENRES := {"comedy","family","feelgood"}
+  []
+    MOOD = "😐" -> MOOD_GENRES := {"popular","mixed"}
+  []
+    MOOD = "😡" -> MOOD_GENRES := {"action","thriller"}
+  []
+    MOOD = "😴" -> MOOD_GENRES := {"short","relax"}
+  []
+    MOOD = "🤩" -> MOOD_GENRES := {"new","scifi","action"}
+  fi;
+
+(*
+========================
+Similitud y contadores
+========================
+*)
+
+fun Jaccard(A, B) =
+  if (A ∪ B) = {} -> return 0 fi;
+  return |A ∩ B| / |A ∪ B|;
+
+proc CountAddSet(var CNT, KSET) =
+  (* CNT: mapa kw -> frecuencia; KSET: conjunto de keywords *)
+  do ∃k ∈ KSET ->
+     if k ∈ dom(CNT) -> CNT[k] := CNT[k] + 1
+     [] k ∉ dom(CNT) -> CNT[k] := 1
+     fi;
+     KSET := KSET \ {k}
+  od;
+
+fun TopK(CNT, k) =
+  (* devuelve conjunto con las k claves de mayor frecuencia *)
+  var RES; RES := {};
+  var TMP; TMP := CNT;       (* copia lógica *)
+  var mkey, mval;
+  do (k > 0) ∧ (dom(TMP) ≠ {}) ->
+     (* extrae la clave con mayor valor *)
+     mkey := any x ∈ dom(TMP) : ∀y ∈ dom(TMP) • TMP[x] ≥ TMP[y];
+     RES := RES ∪ {mkey};
+     TMP := TMP \ {mkey};
+     k := k - 1
+  od;
+  return RES;
+
+(*
+========================
+Perfiles del usuario
+========================
+*)
+
+proc BuildProfiles(HISTORY, K_LONG, K_RECENT) -> PROFILE_LONG, PROFILE_RECENT =
+  var CNT_LONG, CNT_REC; CNT_LONG := {}; CNT_REC := {};
+  var title, it;
+
+  (* Contar sobre todo el historial *)
+  do ∃title ∈ SetFromList(HISTORY) ->
+     it := FindItemByTitle(title);
+     if it ≠ nil ->
+        call CountAddSet(CNT_LONG, it.genres ∪ it.tags)
+     fi;
+     HISTORY := HISTORY \ {title}
+  od;
+
+  (* Contar sobre últimos K_RECENT *)
+  var LAST; LAST := Tail(HISTORY, K_RECENT);
+  do ∃title ∈ SetFromList(LAST) ->
+     it := FindItemByTitle(title);
+     if it ≠ nil ->
+        call CountAddSet(CNT_REC, it.genres ∪ it.tags)
+     fi;
+     LAST := LAST \ {title}
+  od;
+
+  PROFILE_LONG := TopK(CNT_LONG, K_LONG);
+  PROFILE_RECENT := TopK(CNT_REC, K_RECENT);
+
+(*
+========================
+Boost por estado de ánimo
+========================
+*)
+
+fun MoodBoost(ITEM_GENRES, MOOD_GENRES) =
+  var b; b := 0.1 * |ITEM_GENRES ∩ MOOD_GENRES|;
+  if b > 0.3 -> b := 0.3 fi;
+  return b;
+
+(*
+========================
+Explicación (texto corto)
+========================
+*)
+
+fun BuildReason(PROFILE_LONG, PROFILE_RECENT, ITEM, MOOD_GENRES, MOOD) =
+  var kw, ol, orc, om, parts;
+  kw  := ITEM.genres ∪ ITEM.tags;
+  ol  := PROFILE_LONG ∩ kw;
+  orc := PROFILE_RECENT ∩ kw;
+  om  := ITEM.genres ∩ MOOD_GENRES;
+  parts := [];
+
+  if ol ≠ {} ->
+     parts := parts ⧺ ["coincide con tus gustos de siempre (" + join(ol, ", ") + ")"]
+  fi;
+  if orc ≠ {} ->
+     parts := parts ⧺ ["se parece a lo que viste recientemente (" + join(orc, ", ") + ")"]
+  fi;
+  if om ≠ {} ->
+     parts := parts ⧺ ["va con tu estado de ánimo " + MOOD + " (" + join(om, ", ") + ")"]
+  fi;
+
+  if parts = [] -> return "bien valorada y puede gustarte por variedad" fi;
+  return join(parts, "; ");
+
+(*
+========================
+Puntaje de un ítem
+========================
+*)
+
+fun ScoreItem(ITEM, PROFILE_LONG, PROFILE_RECENT, MOOD_GENRES) =
+  var kw, s_long, s_rec, s_mood, s_pop;
+  kw     := ITEM.genres ∪ ITEM.tags;
+  s_long := Jaccard(PROFILE_LONG, kw);
+  s_rec  := Jaccard(PROFILE_RECENT, kw);
+  s_mood := MoodBoost(ITEM.genres, MOOD_GENRES);
+  s_pop  := 0.001 * ITEM.popularity;
+  return 0.5*s_long + 0.3*s_rec + s_mood + s_pop;
+
+(*
+========================
+Recomendar (Top-N)
+========================
+*)
+
+proc Recommend(HISTORY_LIST, MOOD, TOP_N) -> RECS =
+  var PROFILE_LONG, PROFILE_RECENT, MOOD_GENRES, SEEN, SCORED;
+  call MoodToGenres(MOOD) -> MOOD_GENRES;
+  call BuildProfiles(HISTORY_LIST, 6, 4) -> PROFILE_LONG, PROFILE_RECENT;
+
+  SEEN := SetFromList(HISTORY_LIST);
+  SCORED := {};   (* conjunto de tuplas (title, score, reason) *)
+
+  var c, s, r;
+  do ∃c ∈ CATALOG : c.title ∉ SEEN ->
+     s := ScoreItem(c, PROFILE_LONG, PROFILE_RECENT, MOOD_GENRES);
+     r := BuildReason(PROFILE_LONG, PROFILE_RECENT, c, MOOD_GENRES, MOOD);
+     SCORED := SCORED ∪ {(c.title, s, r)};
+     CATALOG := CATALOG \ {c}
+  od;
+
+  (* Ordenar por score descendente y tomar TOP_N *)
+  RECS := TopNByScore(SCORED, TOP_N);
+
+(*
+========================
+Programa principal
+========================
+*)
+
+begin
+  var user_id, mood, history, recs;
+
+  (* Supón que CATALOG y USERS ya están inicializados con los datos del script. *)
+
+  input user_id;                         (* ej.: "ana" *)
+  if user_id ∉ dom(USERS) -> user_id := "ana" fi;
+
+  input mood;                            (* ej.: "😊" *)
+  history := USERS[user_id];             (* lista de títulos vistos *)
+
+  call Recommend(history, mood, TOP_N) -> recs;
+
+  output "=== Recomendaciones (TOP " + toString(TOP_N) + ") para " + user_id + " (" + mood + ") ===";
+  (* Imprimir cada (title, score, reason) en recs *)
+  do ∃t ∈ recs ->
+     output t;           (* donde t = (title, score, reason) *)
+     recs := recs \ {t}
+  od
+end
