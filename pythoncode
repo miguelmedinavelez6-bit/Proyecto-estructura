@@ -1,0 +1,292 @@
+# -*- coding: utf-8 -*-
+# ---------------------------------------------------------
+# - Perfil de largo plazo (gustos históricos)
+# - Perfil reciente (últimos K títulos)
+# - Estado de ánimo (emoji → géneros)
+# - Popularidad como desempate suave
+# - Sin librerías externas
+# - TOP_N FIJO para todas las situaciones
+# ---------------------------------------------------------
+
+from collections import Counter
+from typing import List, Dict, Set, Tuple
+
+# ====== CONFIGURACIÓN GLOBAL ======
+TOP_N = 5  # número fijo de recomendaciones
+
+# ====== CATALOGO AMPLIADO ======
+CATALOG: List[Dict] = [
+    {"title": "Toy Story",
+     "genres": {"comedy", "family", "adventure"},
+     "tags": {"toys", "friendship", "pixar"},
+     "popularity": 950},
+    {"title": "Matrix",
+     "genres": {"action", "scifi"},
+     "tags": {"virtual", "rebellion", "classic"},
+     "popularity": 990},
+    {"title": "Coco",
+     "genres": {"family", "animation", "music"},
+     "tags": {"mexico", "tradition", "pixar"},
+     "popularity": 910},
+    {"title": "Inception",
+     "genres": {"action", "thriller", "scifi"},
+     "tags": {"dreams", "mind-bending", "nolan"},
+     "popularity": 980},
+    {"title": "Inside Out",
+     "genres": {"family", "animation", "comedy"},
+     "tags": {"emotions", "pixar", "feelgood"},
+     "popularity": 930},
+    {"title": "Soul",
+      "genres": {"animation", "music", "feelgood"},
+      "tags": {"jazz", "pixar", "life"},
+      "popularity": 870},
+    {"title": "Spider-Verse",
+     "genres": {"action", "animation", "scifi"},
+     "tags": {"multiverse", "superhero", "fast"},
+     "popularity": 975},
+    {"title": "The Office",
+     "genres": {"comedy"},
+     "tags": {"workplace", "sitcom"},
+     "popularity": 960},
+    {"title": "The Social Network",
+     "genres": {"drama"},
+     "tags": {"tech", "startup", "biopic"},
+     "popularity": 905},
+    {"title": "Interstellar",
+     "genres": {"scifi", "drama"},
+     "tags": {"space", "time", "nolan"},
+     "popularity": 985},
+    {"title": "The Dark Knight",
+     "genres": {"action", "thriller"},
+     "tags": {"batman", "nolan", "superhero"},
+     "popularity": 990},
+    {"title": "Guardians of the Galaxy",
+     "genres": {"action", "scifi", "comedy"},
+     "tags": {"marvel", "space", "soundtrack"},
+     "popularity": 960},
+    {"title": "Avengers: Endgame",
+     "genres": {"action", "scifi"},
+     "tags": {"marvel", "superheroes", "epic"},
+     "popularity": 995},
+    {"title": "Black Panther",
+     "genres": {"action", "drama", "scifi"},
+     "tags": {"marvel", "wakanda", "superhero"},
+     "popularity": 965},
+    {"title": "Mad Max: Fury Road",
+     "genres": {"action", "thriller"},
+     "tags": {"post-apocalyptic", "chase", "desert"},
+     "popularity": 930},
+    {"title": "The Lion King",
+     "genres": {"animation", "family", "music"},
+     "tags": {"disney", "africa", "classic"},
+     "popularity": 980},
+    {"title": "Zootopia",
+     "genres": {"animation", "family", "comedy"},
+     "tags": {"animals", "buddy-cop", "disney"},
+     "popularity": 920},
+    {"title": "Moana",
+     "genres": {"animation", "family", "music", "adventure"},
+     "tags": {"disney", "ocean", "voyage"},
+     "popularity": 915},
+    {"title": "Frozen",
+     "genres": {"animation", "family", "music"},
+     "tags": {"disney", "princess", "winter"},
+     "popularity": 970},
+    {"title": "Finding Nemo",
+     "genres": {"animation", "family", "adventure"},
+     "tags": {"pixar", "ocean", "fish"},
+     "popularity": 965},
+    {"title": "Ratatouille",
+     "genres": {"animation", "family", "comedy"},
+     "tags": {"pixar", "cooking", "paris"},
+     "popularity": 930},
+    {"title": "The Incredibles",
+     "genres": {"animation", "action", "family"},
+     "tags": {"pixar", "superheroes", "team"},
+     "popularity": 960},
+    {"title": "Parasite",
+     "genres": {"drama", "thriller"},
+     "tags": {"korea", "class", "oscar"},
+     "popularity": 940},
+    {"title": "Whiplash",
+     "genres": {"drama", "music"},
+     "tags": {"jazz", "drummer", "intense"},
+     "popularity": 910},
+    {"title": "The Godfather",
+     "genres": {"drama"},
+     "tags": {"mafia", "family", "oscar"},
+     "popularity": 980},
+    {"title": "Pulp Fiction",
+     "genres": {"drama", "thriller"},
+     "tags": {"tarantino", "nonlinear", "cult"},
+     "popularity": 960},
+    {"title": "The Shawshank Redemption",
+     "genres": {"drama"},
+     "tags": {"prison", "hope", "classic"},
+     "popularity": 985},
+    {"title": "Up",
+     "genres": {"animation", "family", "adventure"},
+     "tags": {"pixar", "balloons", "heartwarming"},
+     "popularity": 955},
+    {"title": "WALL-E",
+     "genres": {"animation", "scifi", "family"},
+     "tags": {"robot", "earth", "pixar"},
+     "popularity": 950},
+]
+
+# ====== USUARIOS (2 base + 15 nuevos) ======
+USERS = {
+    "ana": {"history": ["Toy Story", "Coco", "Inside Out", "Soul"]},
+    "luis": {"history": ["Matrix", "Inception", "Spider-Verse"]},
+    "sofia": {"history": ["The Lion King", "Finding Nemo", "Ratatouille", "Zootopia"]},
+    "mateo": {"history": ["The Dark Knight", "Inception", "Interstellar"]},
+    "karen": {"history": ["Parasite", "The Godfather", "Pulp Fiction"]},
+    "andres": {"history": ["Avengers: Endgame", "Guardians of the Galaxy", "Black Panther", "Spider-Verse"]},
+    "maria": {"history": ["Moana", "Frozen", "Coco"]},
+    "juan": {"history": ["The Social Network", "The Godfather", "Whiplash"]},
+    "laura": {"history": ["Inside Out", "Soul", "Up"]},
+    "diego": {"history": ["Mad Max: Fury Road", "The Dark Knight", "Pulp Fiction"]},
+    "camila": {"history": ["The Lion King", "Moana", "Finding Nemo", "Ratatouille"]},
+    "daniel": {"history": ["Matrix", "Interstellar", "WALL-E"]},
+    "valentina": {"history": ["The Incredibles", "Spider-Verse", "Up"]},
+    "santiago": {"history": ["Toy Story", "The Incredibles", "Finding Nemo"]},
+    "carolina": {"history": ["Parasite", "The Shawshank Redemption", "The Social Network"]},
+    "felipe": {"history": ["Black Panther", "The Dark Knight", "The Incredibles"]},
+    "natalia": {"history": ["Coco", "Inside Out", "WALL-E"]},
+}
+
+# ====== EMOJI → GENEROS SUGERIDOS ======
+MOOD_TO_GENRES: Dict[str, Set[str]] = {
+    "😊": {"comedy", "adventure"},
+    "😔": {"comedy", "family", "feelgood"},
+    "😐": {"popular", "mixed"},          # comodín para variedad (puede no hacer match)
+    "😡": {"action", "thriller"},
+    "😴": {"short", "relax"},
+    "🤩": {"new", "scifi", "action"},
+}
+
+# ====== UTILIDADES ======
+
+def jaccard(a: Set[str], b: Set[str]) -> float:
+    """Similitud Jaccard de dos conjuntos."""
+    u = a | b
+    if not u:
+        return 0.0
+    return len(a & b) / len(u)
+
+def top_keywords(counter: Counter, k: int) -> Set[str]:
+    """Top-k palabras clave por frecuencia (como conjunto)."""
+    return {kw for kw, _ in counter.most_common(k)}
+
+def build_profiles(history: List[str], catalog: List[Dict],
+                   k_long: int = 6, k_recent: int = 4) -> Tuple[Set[str], Set[str]]:
+    """
+    PERFIL LARGO PLAZO: top k_long keywords (genres+tags) de TODO el historial.
+    PERFIL RECIENTE    : top k_recent keywords de los ÚLTIMOS k_recent títulos.
+    """
+    title_map = {c["title"]: c for c in catalog}
+    cnt_long: Counter = Counter()
+    cnt_rec: Counter = Counter()
+
+    # Contar keywords de todo el historial
+    for title in history:
+        item = title_map.get(title)
+        if not item:
+            continue
+        cnt_long.update(item["genres"])
+        cnt_long.update(item["tags"])
+
+    # Tomar últimos k_recent títulos
+    last_titles = history[-k_recent:] if history else []
+    for title in last_titles:
+        item = title_map.get(title)
+        if not item:
+            continue
+        cnt_rec.update(item["genres"])
+        cnt_rec.update(item["tags"])
+
+    profile_long = top_keywords(cnt_long, k_long)
+    profile_recent = top_keywords(cnt_rec, k_recent)
+    return profile_long, profile_recent
+
+def mood_boost(item_genres: Set[str], mood: str, cap: float = 0.3) -> float:
+    """Suma 0.1 por coincidencia con géneros del estado de ánimo; tope en cap."""
+    mg = MOOD_TO_GENRES.get(mood, set())
+    b = 0.1 * len(item_genres & mg)
+    return min(b, cap)
+
+def explain_reason(profile_long: Set[str], profile_recent: Set[str],
+                   item: Dict, mood: str) -> str:
+    """Explicación sencilla del porqué."""
+    g, t = item["genres"], item["tags"]
+    kw = g | t
+
+    ol = profile_long & kw
+    orc = profile_recent & kw
+    mg = MOOD_TO_GENRES.get(mood, set())
+    om = g & mg
+
+    parts = []
+    if ol:
+        parts.append(f"coincide con tus gustos de siempre ({', '.join(sorted(ol))})")
+    if orc:
+        parts.append(f"se parece a lo que viste recientemente ({', '.join(sorted(orc))})")
+    if om:
+        parts.append(f"va con tu estado de ánimo {mood} ({', '.join(sorted(om))})")
+
+    if not parts:
+        return "bien valorada y puede gustarte por variedad"
+    return "; ".join(parts)
+
+def score_item(item: Dict,
+               profile_long: Set[str],
+               profile_recent: Set[str],
+               mood: str,
+               w_long: float = 0.5,
+               w_recent: float = 0.3,
+               popularity_weight: float = 0.001) -> float:
+    """Puntaje total combinando perfiles + estado de ánimo + popularidad."""
+    kw = item["genres"] | item["tags"]
+    s_long = jaccard(profile_long, kw)
+    s_rec = jaccard(profile_recent, kw)
+    s_mood = mood_boost(item["genres"], mood)
+    s_pop = popularity_weight * float(item.get("popularity", 0))
+    return w_long * s_long + w_recent * s_rec + s_mood + s_pop
+
+def recommend(user_history: List[str], mood: str, top_n: int = TOP_N,
+              catalog: List[Dict] = None) -> List[Tuple[str, float, str]]:
+    """Devuelve [(título, puntaje, explicación)] ordenado por puntaje desc."""
+    if catalog is None:
+        catalog = CATALOG
+
+    profile_long, profile_recent = build_profiles(user_history, catalog)
+    seen = set(user_history)
+
+    scored: List[Tuple[str, float, str]] = []
+    for item in catalog:
+        if item["title"] in seen:
+            continue
+        s = score_item(item, profile_long, profile_recent, mood)
+        reason = explain_reason(profile_long, profile_recent, item, mood)
+        scored.append((item["title"], s, reason))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:top_n]
+
+# ====== DEMOSTRACIÓN ======
+if __name__ == "__main__":
+    print("Usuarios disponibles:", ", ".join(USERS.keys()))
+    user_id = input("¿A quién recomendaremos? (escribe un nombre de la lista): ").strip().lower()
+    if user_id not in USERS:
+        print("Usuario no encontrado. Uso 'ana' por defecto.")
+        user_id = "ana"
+
+    mood = input("¿Cómo te sientes hoy? (elige un emoji: 😊 😔 😐 😡 😴 🤩): ").strip()
+    history = USERS[user_id]["history"]
+
+    print("\nHistorial del usuario:", history)
+    recs = recommend(history, mood, top_n=TOP_N, catalog=CATALOG)
+
+    print(f"\n=== Recomendaciones (TOP {TOP_N}) para {user_id} ({mood or 'sin emoji'}) ===")
+    for title, score, reason in recs:
+        print(f"- {title:25s} | score={score:.3f} | {reason}")
