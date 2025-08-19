@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recomendador de Contenido — Demo Visual</title>
+  <style>
+    :root{
+      --bg:#0b1020;        /* fondo oscuro elegante */
+      --panel:#0f172a;     /* panel principal */
+      --card:#111827cc;    /* cartas con glassmorphism */
+      --muted:#94a3b8;     /* texto secundario */
+      --text:#e5e7eb;      /* texto principal */
+      --accent:#7c3aed;    /* acento morado */
+      --accent-2:#22d3ee;  /* acento cian */
+      --chip:#1f2937cc;    /* chip */
+      --chip-bd:#334155;   /* borde chip */
+      --ok:#16a34a;        /* success */
+      --bad:#ef4444;       /* danger */
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:radial-gradient(1200px 600px at 20% -10%, #1e293b 0%, #0b1020 60%), var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height:1.4;
+    }
+    header{
+      padding:32px 20px 18px; position:sticky; top:0; z-index:20; backdrop-filter: blur(10px); background:linear-gradient(180deg, rgba(2,6,23,.9) 0%, rgba(2,6,23,.6) 70%, rgba(2,6,23,0) 100%);
+      border-bottom:1px solid #0b1220;
+    }
+    .wrap{ max-width:1100px; margin:0 auto; padding:0 16px; }
+    .brand{
+      display:flex; align-items:center; gap:14px; margin-bottom:14px;
+    }
+    .logo{
+      width:48px; height:48px; border-radius:12px; background: conic-gradient(from 210deg, var(--accent), var(--accent-2), #38bdf8, var(--accent)); box-shadow:var(--shadow);
+    }
+    h1{ margin:0; font-size:1.65rem; letter-spacing:.4px; }
+    .subtitle{ color:var(--muted); font-size:.98rem; margin-top:2px }
+
+    .controls{ display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; }
+    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(17,24,39,.6), rgba(17,24,39,.3));
+      border:1px solid #1f2c45; border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow);
+    }
+    select, button, .chip{ border-radius:12px; border:1px solid #22314f; background:#0b1327; color:var(--text); padding:10px 12px; font-size:.95rem; }
+    select:focus, button:focus{ outline:2px solid var(--accent-2) }
+    .emoji-bar button{ font-size:20px; width:44px; height:44px; padding:0; display:grid; place-items:center; background:#0c1631; border:1px solid #22314f }
+    .emoji-bar button.active{ outline:2px solid var(--accent-2); background:#0e1b3b }
+    .ghost{ background:transparent; border-color:#27324b }
+
+    main{ padding: 18px 0 32px; }
+
+    .grid{ display:grid; grid-template-columns: repeat(12, 1fr); gap:16px; }
+    .col{ grid-column: span 12; }
+    @media(min-width: 880px){
+      .col-4{ grid-column: span 4; }
+      .col-8{ grid-column: span 8; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(17,24,39,.7), rgba(17,24,39,.35));
+      border:1px solid #1f2c45; border-radius: var(--radius); padding:16px; box-shadow: var(--shadow);
+    }
+
+    .history{ min-height:76px; color:#d1d5db; }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+    .chip{ background: var(--chip); border:1px solid var(--chip-bd); color:#d1d5db; padding:6px 10px; font-size:.86rem }
+
+    .toolbar{ display:flex; gap:8px; justify-content:flex-end }
+    .btn{ cursor:pointer; }
+    .btn.ok{ border-color: #1f4831; background: #0b1f15 }
+    .btn.bad{ border-color: #4b1f25; background: #1a0c0e }
+
+    .cards{ display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+    .poster{ height:140px; border-radius:12px; background: radial-gradient(300px 140px at 20% 20%, rgba(124,58,237,.6), rgba(34,211,238,.28), rgba(2,6,23,.1)), linear-gradient(45deg, rgba(124,58,237,.18), rgba(34,211,238,.18)); border:1px solid #263454;
+      display:flex; align-items:center; justify-content:center; color:#e5e7eb; font-weight:600; letter-spacing:.4px }
+    .title{ font-size:1.05rem; margin:12px 0 6px }
+    .muted{ color: var(--muted); font-size:.9rem }
+
+    .bar{ height:8px; background:#0d1429; border:1px solid #22314f; border-radius:6px; overflow:hidden; }
+    .bar > i{ display:block; height:100%; width:0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+
+    footer{ color:#9aa4b5; font-size:.85rem; padding:18px 0 40px; text-align:center }
+    .link{ color:#7dd3fc }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Recomendador de Contenido · Demo Visual</h1>
+          <div class="subtitle">Perfiles múltiples + Estado de ánimo + Explicaciones, en una interfaz limpia</div>
+        </div>
+      </div>
+
+      <div class="controls grid">
+        <div class="col col-8 panel">
+          <div class="row" style="gap:12px">
+            <label for="userSel">Usuario</label>
+            <select id="userSel"></select>
+            <span class="subtitle">Historial y gustos se usan para el perfil</span>
+          </div>
+        </div>
+        <div class="col col-4 panel">
+          <div class="row emoji-bar">
+            <span class="subtitle">¿Cómo te sientes hoy?</span>
+            <div style="flex:1"></div>
+            <button class="emo" data-emo="😊">😊</button>
+            <button class="emo" data-emo="😔">😔</button>
+            <button class="emo" data-emo="😐">😐</button>
+            <button class="emo" data-emo="😡">😡</button>
+            <button class="emo" data-emo="😴">😴</button>
+            <button class="emo" data-emo="🤩">🤩</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid">
+      <div class="col col-8 card">
+        <h3 style="margin:0 0 8px">Recomendaciones (Top 5)</h3>
+        <div class="cards" id="cards"></div>
+      </div>
+      <div class="col col-4 card">
+        <h3 style="margin:0 0 6px">Perfil del usuario</h3>
+        <div id="history" class="history"></div>
+        <div class="chips" id="chipsLong"></div>
+        <div class="chips" id="chipsRecent"></div>
+        <div class="toolbar" style="margin-top:10px">
+          <button class="btn ghost" id="btnReset">Reiniciar feedback</button>
+          <button class="btn" id="btnExport">Exportar recomendaciones</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">Hecho para presentar tu proyecto: simple, explicable y visual ✨</footer>
+
+  <script>
+    // ==================== DATOS ====================
+    const TOP_N = 5;
+    const CATALOG = [
+      {title:"Toy Story", genres:["comedy","family","adventure"], tags:["toys","friendship","pixar"], popularity:950},
+      {title:"Matrix", genres:["action","scifi"], tags:["virtual","rebellion","classic"], popularity:990},
+      {title:"Coco", genres:["family","animation","music"], tags:["mexico","tradition","pixar"], popularity:910},
+      {title:"Inception", genres:["action","thriller","scifi"], tags:["dreams","mind-bending","nolan"], popularity:980},
+      {title:"Inside Out", genres:["family","animation","comedy"], tags:["emotions","pixar","feelgood"], popularity:930},
+      {title:"Soul", genres:["animation","music","feelgood"], tags:["jazz","pixar","life"], popularity:870},
+      {title:"Spider-Verse", genres:["action","animation","scifi"], tags:["multiverse","superhero","fast"], popularity:975},
+      {title:"The Office", genres:["comedy"], tags:["workplace","sitcom"], popularity:960},
+      {title:"The Social Network", genres:["drama"], tags:["tech","startup","biopic"], popularity:905},
+      {title:"Interstellar", genres:["scifi","drama"], tags:["space","time","nolan"], popularity:985},
+      {title:"The Dark Knight", genres:["action","thriller"], tags:["batman","nolan","superhero"], popularity:990},
+      {title:"Guardians of the Galaxy", genres:["action","scifi","comedy"], tags:["marvel","space","soundtrack"], popularity:960},
+      {title:"Avengers: Endgame", genres:["action","scifi"], tags:["marvel","superheroes","epic"], popularity:995},
+      {title:"Black Panther", genres:["action","drama","scifi"], tags:["marvel","wakanda","superhero"], popularity:965},
+      {title:"Mad Max: Fury Road", genres:["action","thriller"], tags:["post-apocalyptic","chase","desert"], popularity:930},
+      {title:"The Lion King", genres:["animation","family","music"], tags:["disney","africa","classic"], popularity:980},
+      {title:"Zootopia", genres:["animation","family","comedy"], tags:["animals","buddy-cop","disney"], popularity:920},
+      {title:"Moana", genres:["animation","family","music","adventure"], tags:["disney","ocean","voyage"], popularity:915},
+      {title:"Frozen", genres:["animation","family","music"], tags:["disney","princess","winter"], popularity:970},
+      {title:"Finding Nemo", genres:["animation","family","adventure"], tags:["pixar","ocean","fish"], popularity:965},
+      {title:"Ratatouille", genres:["animation","family","comedy"], tags:["pixar","cooking","paris"], popularity:930},
+      {title:"The Incredibles", genres:["animation","action","family"], tags:["pixar","superheroes","team"], popularity:960},
+      {title:"Parasite", genres:["drama","thriller"], tags:["korea","class","oscar"], popularity:940},
+      {title:"Whiplash", genres:["drama","music"], tags:["jazz","drummer","intense"], popularity:910},
+      {title:"The Godfather", genres:["drama"], tags:["mafia","family","oscar"], popularity:980},
+      {title:"Pulp Fiction", genres:["drama","thriller"], tags:["tarantino","nonlinear","cult"], popularity:960},
+      {title:"The Shawshank Redemption", genres:["drama"], tags:["prison","hope","classic"], popularity:985},
+      {title:"Up", genres:["animation","family","adventure"], tags:["pixar","balloons","heartwarming"], popularity:955},
+      {title:"WALL-E", genres:["animation","scifi","family"], tags:["robot","earth","pixar"], popularity:950},
+    ];
+
+    const USERS = {
+      ana:{history:["Toy Story","Coco","Inside Out","Soul"]},
+      luis:{history:["Matrix","Inception","Spider-Verse"]},
+      sofia:{history:["The Lion King","Finding Nemo","Ratatouille","Zootopia"]},
+      mateo:{history:["The Dark Knight","Inception","Interstellar"]},
+      karen:{history:["Parasite","The Godfather","Pulp Fiction"]},
+      andres:{history:["Avengers: Endgame","Guardians of the Galaxy","Black Panther","Spider-Verse"]},
+      maria:{history:["Moana","Frozen","Coco"]},
+      juan:{history:["The Social Network","The Godfather","Whiplash"]},
+      laura:{history:["Inside Out","Soul","Up"]},
+      diego:{history:["Mad Max: Fury Road","The Dark Knight","Pulp Fiction"]},
+      camila:{history:["The Lion King","Moana","Finding Nemo","Ratatouille"]},
+      daniel:{history:["Matrix","Interstellar","WALL-E"]},
+      valentina:{history:["The Incredibles","Spider-Verse","Up"]},
+      santiago:{history:["Toy Story","The Incredibles","Finding Nemo"]},
+      carolina:{history:["Parasite","The Shawshank Redemption","The Social Network"]},
+      felipe:{history:["Black Panther","The Dark Knight","The Incredibles"]},
+      natalia:{history:["Coco","Inside Out","WALL-E"]},
+    };
+
+    const MOOD_TO_GENRES = {
+      "😊": new Set(["comedy","adventure"]),
+      "😔": new Set(["comedy","family","feelgood"]),
+      "😐": new Set(["popular","mixed"]),
+      "😡": new Set(["action","thriller"]),
+      "😴": new Set(["short","relax"]),
+      "🤩": new Set(["new","scifi","action"]),
+    };
+
+    // dislike/like feedback en memoria (por sesión)
+    const feedback = { like:new Set(), dislike:new Set() };
+
+    // ==================== LÓGICA ====================
+    const titleMap = Object.fromEntries(CATALOG.map(c=>[c.title, c]));
+
+    function jaccard(a, b){
+      const A = new Set(a), B = new Set(b);
+      if(!A.size && !B.size) return 0;
+      const inter = [...A].filter(x=>B.has(x)).length;
+      const union = new Set([...A, ...B]).size;
+      return inter/union;
+    }
+
+    function topKeywords(countMap, k){
+      const arr = Object.entries(countMap).sort((a,b)=>b[1]-a[1]);
+      return new Set(arr.slice(0,k).map(([kw])=>kw));
+    }
+
+    function buildProfiles(history, kLong=6, kRecent=4){
+      const cntLong={}, cntRec={};
+      history.forEach(t=>{
+        const it = titleMap[t]; if(!it) return;
+        it.genres.forEach(g=>cntLong[g]=(cntLong[g]||0)+1);
+        it.tags.forEach(g=>cntLong[g]=(cntLong[g]||0)+1);
+      });
+      const last = history.slice(-kRecent);
+      last.forEach(t=>{
+        const it = titleMap[t]; if(!it) return;
+        it.genres.forEach(g=>cntRec[g]=(cntRec[g]||0)+1);
+        it.tags.forEach(g=>cntRec[g]=(cntRec[g]||0)+1);
+      });
+      return {
+        long: topKeywords(cntLong, kLong),
+        recent: topKeywords(cntRec, kRecent),
+      };
+    }
+
+    function moodBoost(itemGenres, mood, cap=.3){
+      const mg = MOOD_TO_GENRES[mood] || new Set();
+      const inter = itemGenres.filter(g=>mg.has(g)).length;
+      const boost = 0.1 * inter;
+      return Math.min(boost, cap);
+    }
+
+    function scoreItem(item, profiles, mood){
+      const kw = [...new Set([...item.genres, ...item.tags])];
+      const sLong = jaccard(profiles.long, kw);
+      const sRec = jaccard(profiles.recent, kw);
+      const sMood = moodBoost(item.genres, mood);
+      const sPop = 0.001 * (item.popularity||0);
+      let score = 0.5*sLong + 0.3*sRec + sMood + sPop;
+      if (feedback.like.has(item.title)) score += 0.05;
+      if (feedback.dislike.has(item.title)) score -= 0.2;
+      return score;
+    }
+
+    function explainReason(item, profiles, mood){
+      const kw = new Set([...item.genres, ...item.tags]);
+      const ol = [...profiles.long].filter(x=>kw.has(x));
+      const orc = [...profiles.recent].filter(x=>kw.has(x));
+      const mg = MOOD_TO_GENRES[mood] || new Set();
+      const om = item.genres.filter(x=>mg.has(x));
+      const parts = [];
+      if(ol.length) parts.push(`gustos de siempre (${ol.slice(0,3).join(', ')})`);
+      if(orc.length) parts.push(`reciente (${orc.slice(0,3).join(', ')})`);
+      if(om.length) parts.push(`ánimo ${mood} (${om.join(', ')})`);
+      return parts.join('; ') || 'variedad / popular';
+    }
+
+    function recommend(history, mood){
+      const profiles = buildProfiles(history);
+      const seen = new Set(history);
+      const scored = CATALOG
+        .filter(it=>!seen.has(it.title))
+        .map(it=>({
+          item: it,
+          score: scoreItem(it, profiles, mood),
+          reason: explainReason(it, profiles, mood)
+        }))
+        .sort((a,b)=>b.score - a.score)
+        .slice(0, TOP_N);
+      return {profiles, recs: scored};
+    }
+
+    // ==================== UI ====================
+    const userSel = document.getElementById('userSel');
+    const cards = document.getElementById('cards');
+    const historyBox = document.getElementById('history');
+    const chipsLong = document.getElementById('chipsLong');
+    const chipsRecent = document.getElementById('chipsRecent');
+    const btnReset = document.getElementById('btnReset');
+    const btnExport = document.getElementById('btnExport');
+
+    let currentMood = '😊';
+
+    function populateUsers(){
+      userSel.innerHTML = Object.keys(USERS)
+        .sort()
+        .map(u=>`<option value="${u}">${u}</option>`).join('');
+      userSel.value = 'ana';
+    }
+
+    function setActiveEmoji(){
+      document.querySelectorAll('.emoji-bar .emo').forEach(b=>{
+        b.classList.toggle('active', b.dataset.emo === currentMood);
+      });
+    }
+
+    function render(){
+      const user = userSel.value;
+      const history = USERS[user]?.history || [];
+      const {profiles, recs} = recommend(history, currentMood);
+
+      // Historial y perfiles
+      historyBox.textContent = history.join(', ');
+      chipsLong.innerHTML = '<span class="muted">Perfil largo plazo:</span> ' +
+        [...profiles.long].map(g=>`<span class="chip">${g}</span>`).join(' ');
+      chipsRecent.innerHTML = '<span class="muted">Perfil reciente:</span> ' +
+        [...profiles.recent].map(g=>`<span class="chip">${g}</span>`).join(' ');
+
+      // Tarjetas de recomendaciones
+      cards.innerHTML = recs.map(({item, score, reason})=> cardHTML(item, score, reason)).join('');
+
+      // Re-attach listeners (porque re-renderizamos)
+      document.querySelectorAll('.btn-like').forEach(btn=>{
+        btn.addEventListener('click', e=>{
+          const t = e.currentTarget.dataset.title;
+          feedback.dislike.delete(t);
+          feedback.like.add(t);
+          // añadir al historial como si lo hubiera visto y recomputar
+          const user = userSel.value;
+          if(!USERS[user].history.includes(t)) USERS[user].history.push(t);
+          render();
+        });
+      });
+      document.querySelectorAll('.btn-dislike').forEach(btn=>{
+        btn.addEventListener('click', e=>{
+          const t = e.currentTarget.dataset.title;
+          feedback.like.delete(t);
+          feedback.dislike.add(t);
+          render();
+        });
+      });
+    }
+
+    function cardHTML(item, score, reason){
+      const width = Math.max(0, Math.min(1, score)) * 100;
+      return `
+        <article class="card">
+          <div class="poster">${item.title}</div>
+          <div class="title">${item.title}</div>
+          <div class="muted">${item.genres.join(' · ')}</div>
+          <div class="chips">${item.tags.map(t=>`<span class=chip>#${t}</span>`).join('')}</div>
+          <div style="margin:10px 0 6px"><span class="muted">Puntaje</span></div>
+          <div class="bar" aria-label="score"><i style="width:${width}%"></i></div>
+          <div class="muted" style="margin-top:8px">${reason}</div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="btn ok btn-like" data-title="${item.title}">👍 Me gustó</button>
+            <button class="btn bad btn-dislike" data-title="${item.title}">👎 No me gustó</button>
+          </div>
+        </article>`;
+    }
+
+    // Eventos
+    userSel.addEventListener('change', ()=>{ render(); });
+    document.querySelectorAll('.emoji-bar .emo').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ currentMood = btn.dataset.emo; setActiveEmoji(); render(); });
+    });
+
+    btnReset.addEventListener('click', ()=>{
+      feedback.like.clear(); feedback.dislike.clear();
+      // También limpiamos los vistos agregados por feedback (dejamos solo los originales)
+      Object.entries(USERS).forEach(([u, obj])=>{
+        const original = (USERS_ORIG[u]||[]).slice();
+        obj.history = original;
+      });
+      render();
+    });
+
+    btnExport.addEventListener('click', ()=>{
+      const user = userSel.value;
+      const data = { user, mood: currentMood, recommendations: [] };
+      const {recs} = recommend(USERS[user]?.history||[], currentMood);
+      data.recommendations = recs.map(({item, score, reason})=>({title:item.title, score, reason, genres:item.genres, tags:item.tags}));
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `recomendaciones_${user}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // Guardar copia de historiales originales (para reset)
+    const USERS_ORIG = Object.fromEntries(Object.entries(USERS).map(([u,o])=>[u, o.history.slice()]));
+
+    // Init
+    populateUsers();
+    setActiveEmoji();
+    render();
+  </script>
+</body>
+</html>
